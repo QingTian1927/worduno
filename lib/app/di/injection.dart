@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../core/database/app_database.dart';
@@ -19,13 +20,17 @@ import '../../features/learning/application/services/i_learn_service.dart';
 import '../../features/learning/application/services/learn_service_impl.dart';
 import '../../shared/vocabulary/application/services/i_vocabulary_service.dart';
 import '../../shared/vocabulary/application/services/vocabulary_service_impl.dart';
+import '../../shared/vocabulary/data/datasources/i_vocabulary_local_data_source.dart';
 import '../../shared/vocabulary/data/datasources/i_vocabulary_remote_data_source.dart';
+import '../../shared/vocabulary/data/datasources/vocabulary_local_data_source_impl.dart';
 import '../../shared/vocabulary/data/datasources/vocabulary_remote_data_source_impl.dart';
+import '../../shared/vocabulary/data/datasources/vocabulary_storage_data_source_factory.dart';
 import '../../shared/vocabulary/data/repositories/vocabulary_repository_impl.dart';
 import '../../shared/vocabulary/domain/repositories/i_vocabulary_repository.dart';
 import '../../shared/word_state/application/services/i_word_state_service.dart';
 import '../../shared/word_state/application/services/word_state_service_impl.dart';
 import '../../shared/word_state/data/datasources/i_word_state_local_data_source.dart';
+import '../../shared/word_state/data/datasources/word_state_memory_data_source_impl.dart';
 import '../../shared/word_state/data/datasources/word_state_local_data_source_impl.dart';
 import '../../shared/word_state/data/repositories/word_state_repository_impl.dart';
 import '../../shared/word_state/domain/repositories/i_word_state_repository.dart';
@@ -38,20 +43,32 @@ Future<void> setupDependencies() async {
   }
 
   getIt.registerLazySingleton<Dio>(DioClient.create);
-  getIt.registerLazySingleton<AppDatabase>(AppDatabase.new);
+  if (!kIsWeb) {
+    getIt.registerLazySingleton<AppDatabase>(AppDatabase.new);
+  }
 
   getIt.registerLazySingleton<IVocabularyRemoteDataSource>(
     () => VocabularyRemoteDataSourceImpl(getIt<Dio>()),
   );
+  getIt.registerLazySingleton<IVocabularyLocalDataSource>(
+    () => kIsWeb
+        ? createVocabularyLocalStorageDataSource()
+        : VocabularyLocalDataSourceImpl(getIt<AppDatabase>()),
+  );
   getIt.registerLazySingleton<IVocabularyRepository>(
-    () => VocabularyRepositoryImpl(getIt<IVocabularyRemoteDataSource>()),
+    () => VocabularyRepositoryImpl(
+      getIt<IVocabularyRemoteDataSource>(),
+      getIt<IVocabularyLocalDataSource>(),
+    ),
   );
   getIt.registerLazySingleton<IVocabularyService>(
     () => VocabularyServiceImpl(getIt<IVocabularyRepository>()),
   );
 
   getIt.registerLazySingleton<IWordStateLocalDataSource>(
-    () => WordStateLocalDataSourceImpl(getIt<AppDatabase>()),
+    () => kIsWeb
+        ? WordStateMemoryDataSourceImpl()
+        : WordStateLocalDataSourceImpl(getIt<AppDatabase>()),
   );
   getIt.registerLazySingleton<IWordStateRepository>(
     () => WordStateRepositoryImpl(getIt<IWordStateLocalDataSource>()),

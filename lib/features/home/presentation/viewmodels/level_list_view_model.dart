@@ -6,8 +6,7 @@ import '../../../../shared/vocabulary/domain/entities/level.dart';
 
 class LevelListViewModel extends ChangeNotifier {
   LevelListViewModel({IVocabularyService? vocabularyService})
-      : _vocabularyService =
-            vocabularyService ?? getIt<IVocabularyService>();
+    : _vocabularyService = vocabularyService ?? getIt<IVocabularyService>();
 
   final IVocabularyService _vocabularyService;
 
@@ -15,13 +14,13 @@ class LevelListViewModel extends ChangeNotifier {
   String? errorMessage;
   List<Level> levels = const [];
 
-  Future<void> loadLevels() async {
+  Future<void> loadLevels({bool forceRefresh = false}) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      levels = await _vocabularyService.getLevels();
+      levels = await _vocabularyService.getLevels(forceRefresh: forceRefresh);
     } catch (error) {
       errorMessage = error.toString();
     } finally {
@@ -29,4 +28,6 @@ class LevelListViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> refreshLevels() => loadLevels(forceRefresh: true);
 }

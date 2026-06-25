@@ -98,9 +98,11 @@ class _TermListViewState extends State<_TermListView> {
 
   List<Term> _filtered(List<Term> terms) {
     return terms
-        .where((t) =>
-            t.text.toLowerCase().contains(_searchQuery) ||
-            t.definition.toLowerCase().contains(_searchQuery))
+        .where(
+          (t) =>
+              t.text.toLowerCase().contains(_searchQuery) ||
+              t.definition.toLowerCase().contains(_searchQuery),
+        )
         .toList();
   }
 
@@ -111,13 +113,13 @@ class _TermListViewState extends State<_TermListView> {
     return _FilterMode.newWord;
   }
 
-  bool _isStarred(int index) => index % 4 == 0;
-
-  List<Term> _applyFilter(List<Term> terms) {
+  List<Term> _applyFilter(List<Term> terms, TermListViewModel vm) {
     if (_filter == _FilterMode.all) return terms;
     return terms.where((t) {
       final idx = terms.indexOf(t);
-      if (_filter == _FilterMode.starred) return _isStarred(idx);
+      if (_filter == _FilterMode.starred) {
+        return vm.isStarred(t);
+      }
       return _termStatus(idx) == _filter;
     }).toList();
   }
@@ -133,10 +135,12 @@ class _TermListViewState extends State<_TermListView> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 19, color: Color(0xFF111827)),
-          onPressed: () =>
-              context.read<AppNavigationNotifier>().popHomeRoute(),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 19,
+            color: Color(0xFF111827),
+          ),
+          onPressed: () => context.read<AppNavigationNotifier>().popHomeRoute(),
         ),
         title: const Text(
           'Lexia',
@@ -150,223 +154,236 @@ class _TermListViewState extends State<_TermListView> {
       body: vm.isLoading
           ? const AppLoading(message: 'Loading terms...')
           : vm.errorMessage != null
-              ? AppErrorView(
-                  message: vm.errorMessage!,
-                  onRetry: vm.loadTerms,
-                )
-              : _buildContent(vm),
+          ? AppErrorView(
+              message: vm.errorMessage!,
+              onRetry: () {
+                vm.loadTerms();
+              },
+            )
+          : _buildContent(vm),
     );
   }
 
   Widget _buildContent(TermListViewModel vm) {
     final searched = _filtered(vm.terms);
-    final displayTerms = _applyFilter(searched);
+    final displayTerms = _applyFilter(searched, vm);
+    final flashcardIndex = displayTerms.isEmpty
+        ? 0
+        : _flashcardIndex.clamp(0, displayTerms.length - 1).toInt();
 
     return Column(
       children: [
         // ── Scrollable top section ─────────────────────────────────
         Expanded(
-          child: CustomScrollView(
-            slivers: [
-              // ── Page header ─────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        vm.unitName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF111827),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${vm.terms.length} of ${vm.terms.length} words',
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xFF9CA3AF)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── Search bar ──────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: _SearchBarField(
-                    controller: _searchController,
-                    hint: 'Search vocabulary...',
-                  ),
-                ),
-              ),
-
-              // ── Action buttons: Learn / Exam / Coach ────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: Row(
-                    children: [
-                      _ActionBtn(
-                        icon: Icons.menu_book_outlined,
-                        label: 'Learn',
-                        color: const Color(0xFF3B82F6),
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 10),
-                      _ActionBtn(
-                        icon: Icons.quiz_outlined,
-                        label: 'Exam',
-                        color: const Color(0xFFEF4444),
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 10),
-                      _ActionBtn(
-                        icon: Icons.smart_toy_outlined,
-                        label: 'Coach',
-                        color: const Color(0xFF8B5CF6),
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── List / Flashcards toggle ─────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                  child: _ViewToggle(
-                    current: _viewMode,
-                    onChanged: (m) {
-                      setState(() {
-                        _viewMode = m;
-                        _flashcardIndex = 0;
-                        _flashcardFlipped = false;
-                      });
-                    },
-                  ),
-                ),
-              ),
-
-              // ── Filter chips (only in List mode) ─────────────────
-              if (_viewMode == _ViewMode.list)
+          child: RefreshIndicator(
+            onRefresh: vm.refreshTerms,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                // ── Page header ─────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _FilterChip2(
-                            label: 'All',
-                            selected: _filter == _FilterMode.all,
-                            onTap: () =>
-                                setState(() => _filter = _FilterMode.all),
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vm.unitName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
                           ),
-                          const SizedBox(width: 8),
-                          _FilterChip2(
-                            label: 'Learned',
-                            selected: _filter == _FilterMode.learned,
-                            onTap: () => setState(
-                                () => _filter = _FilterMode.learned),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${vm.terms.length} of ${vm.terms.length} words',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF9CA3AF),
                           ),
-                          const SizedBox(width: 8),
-                          _FilterChip2(
-                            label: 'Learning',
-                            selected: _filter == _FilterMode.learning,
-                            onTap: () => setState(
-                                () => _filter = _FilterMode.learning),
-                          ),
-                          const SizedBox(width: 8),
-                          _FilterChip2(
-                            label: 'New',
-                            selected: _filter == _FilterMode.newWord,
-                            onTap: () => setState(
-                                () => _filter = _FilterMode.newWord),
-                          ),
-                          const SizedBox(width: 8),
-                          _FilterChip2(
-                            label: 'Starred',
-                            selected: _filter == _FilterMode.starred,
-                            onTap: () => setState(
-                                () => _filter = _FilterMode.starred),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
 
-              // ── Content ─────────────────────────────────────────
-              if (_viewMode == _ViewMode.list)
-                displayTerms.isEmpty
-                    ? const SliverFillRemaining(
-                        child: Center(
-                          child: Text('No terms found.',
-                              style: TextStyle(color: Colors.grey)),
+                // ── Search bar ──────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: _SearchBarField(
+                      controller: _searchController,
+                      hint: 'Search vocabulary...',
+                    ),
+                  ),
+                ),
+
+                // ── Action buttons: Learn / Exam / Coach ────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: Row(
+                      children: [
+                        _ActionBtn(
+                          icon: Icons.menu_book_outlined,
+                          label: 'Learn',
+                          color: const Color(0xFF3B82F6),
+                          onTap: () {},
                         ),
-                      )
-                    : SliverPadding(
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 14, 20, 32),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, i) {
+                        const SizedBox(width: 10),
+                        _ActionBtn(
+                          icon: Icons.quiz_outlined,
+                          label: 'Exam',
+                          color: const Color(0xFFEF4444),
+                          onTap: () {},
+                        ),
+                        const SizedBox(width: 10),
+                        _ActionBtn(
+                          icon: Icons.smart_toy_outlined,
+                          label: 'Coach',
+                          color: const Color(0xFF8B5CF6),
+                          onTap: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── List / Flashcards toggle ─────────────────────────
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: _ViewToggle(
+                      current: _viewMode,
+                      onChanged: (m) {
+                        setState(() {
+                          _viewMode = m;
+                          _flashcardIndex = 0;
+                          _flashcardFlipped = false;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+
+                // ── Filter chips (only in List mode) ─────────────────
+                if (_viewMode == _ViewMode.list)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _FilterChip2(
+                              label: 'All',
+                              selected: _filter == _FilterMode.all,
+                              onTap: () =>
+                                  setState(() => _filter = _FilterMode.all),
+                            ),
+                            const SizedBox(width: 8),
+                            _FilterChip2(
+                              label: 'Learned',
+                              selected: _filter == _FilterMode.learned,
+                              onTap: () =>
+                                  setState(() => _filter = _FilterMode.learned),
+                            ),
+                            const SizedBox(width: 8),
+                            _FilterChip2(
+                              label: 'Learning',
+                              selected: _filter == _FilterMode.learning,
+                              onTap: () => setState(
+                                () => _filter = _FilterMode.learning,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _FilterChip2(
+                              label: 'New',
+                              selected: _filter == _FilterMode.newWord,
+                              onTap: () =>
+                                  setState(() => _filter = _FilterMode.newWord),
+                            ),
+                            const SizedBox(width: 8),
+                            _FilterChip2(
+                              label: 'Starred',
+                              selected: _filter == _FilterMode.starred,
+                              onTap: () =>
+                                  setState(() => _filter = _FilterMode.starred),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // ── Content ─────────────────────────────────────────
+                if (_viewMode == _ViewMode.list)
+                  displayTerms.isEmpty
+                      ? const SliverFillRemaining(
+                          child: Center(
+                            child: Text(
+                              'No terms found.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        )
+                      : SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate((context, i) {
                               final term = displayTerms[i];
-                              final globalIndex =
-                                  vm.terms.indexOf(term);
+                              final globalIndex = vm.terms.indexOf(term);
                               return Padding(
-                                padding:
-                                    const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.only(bottom: 12),
                                 child: _TermCard(
                                   term: term,
                                   status: _termStatus(globalIndex),
-                                  starred: _isStarred(globalIndex),
+                                  starred: vm.isStarred(term),
+                                  onToggleStar: () => vm.toggleStar(term),
                                 ),
                               );
-                            },
-                            childCount: displayTerms.length,
+                            }, childCount: displayTerms.length),
                           ),
-                        ),
-                      )
-              else
-                // Flashcard mode
-                SliverFillRemaining(
-                  child: displayTerms.isEmpty
-                      ? const Center(
-                          child: Text('No terms found.',
-                              style: TextStyle(color: Colors.grey)),
                         )
-                      : _FlashcardView(
-                          terms: displayTerms,
-                          currentIndex: _flashcardIndex
-                              .clamp(0, displayTerms.length - 1),
-                          flipped: _flashcardFlipped,
-                          onFlip: () => setState(
-                              () => _flashcardFlipped = !_flashcardFlipped),
-                          onPrev: _flashcardIndex > 0
-                              ? () => setState(() {
+                else
+                  // Flashcard mode
+                  SliverFillRemaining(
+                    child: displayTerms.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No terms found.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          )
+                        : _FlashcardView(
+                            terms: displayTerms,
+                            currentIndex: flashcardIndex,
+                            flipped: _flashcardFlipped,
+                            onFlip: () => setState(
+                              () => _flashcardFlipped = !_flashcardFlipped,
+                            ),
+                            starred: vm.isStarred(displayTerms[flashcardIndex]),
+                            onToggleStar: () =>
+                                vm.toggleStar(displayTerms[flashcardIndex]),
+                            onPrev: _flashcardIndex > 0
+                                ? () => setState(() {
                                     _flashcardIndex--;
                                     _flashcardFlipped = false;
                                   })
-                              : null,
-                          onNext: _flashcardIndex <
-                                  displayTerms.length - 1
-                              ? () => setState(() {
+                                : null,
+                            onNext: _flashcardIndex < displayTerms.length - 1
+                                ? () => setState(() {
                                     _flashcardIndex++;
                                     _flashcardFlipped = false;
                                   })
-                              : null,
-                        ),
-                ),
-            ],
+                                : null,
+                          ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
@@ -379,8 +396,7 @@ class _TermListViewState extends State<_TermListView> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SearchBarField extends StatelessWidget {
-  const _SearchBarField(
-      {required this.controller, required this.hint});
+  const _SearchBarField({required this.controller, required this.hint});
 
   final TextEditingController controller;
   final String hint;
@@ -392,14 +408,18 @@ class _SearchBarField extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle:
-            const TextStyle(color: Color(0xFFBCC0CC), fontSize: 14),
-        prefixIcon:
-            const Icon(Icons.search, color: Color(0xFFBCC0CC), size: 20),
+        hintStyle: const TextStyle(color: Color(0xFFBCC0CC), fontSize: 14),
+        prefixIcon: const Icon(
+          Icons.search,
+          color: Color(0xFFBCC0CC),
+          size: 20,
+        ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -410,8 +430,7 @@ class _SearchBarField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
         ),
       ),
     );
@@ -472,8 +491,7 @@ class _ActionBtn extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ViewToggle extends StatelessWidget {
-  const _ViewToggle(
-      {required this.current, required this.onChanged});
+  const _ViewToggle({required this.current, required this.onChanged});
 
   final _ViewMode current;
   final ValueChanged<_ViewMode> onChanged;
@@ -536,7 +554,7 @@ class _ToggleOption extends StatelessWidget {
                       color: Colors.black.withOpacity(0.08),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
-                    )
+                    ),
                   ]
                 : [],
           ),
@@ -555,9 +573,7 @@ class _ToggleOption extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: selected
-                      ? FontWeight.w700
-                      : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: selected
                       ? const Color(0xFF111827)
                       : const Color(0xFF9CA3AF),
@@ -592,15 +608,12 @@ class _FilterChip2 extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF3B82F6) : Colors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF3B82F6)
-                : const Color(0xFFE5E7EB),
+            color: selected ? const Color(0xFF3B82F6) : const Color(0xFFE5E7EB),
           ),
         ),
         child: Text(
@@ -625,11 +638,13 @@ class _TermCard extends StatelessWidget {
     required this.term,
     required this.status,
     required this.starred,
+    required this.onToggleStar,
   });
 
   final Term term;
   final _FilterMode status;
   final bool starred;
+  final VoidCallback onToggleStar;
 
   Color get _statusColor {
     return switch (status) {
@@ -691,7 +706,9 @@ class _TermCard extends StatelessWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 3),
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: sc.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -712,15 +729,27 @@ class _TermCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.volume_up_outlined,
-                      size: 19, color: Colors.grey[400]),
-                  const SizedBox(width: 6),
                   Icon(
-                    starred ? Icons.star_rounded : Icons.star_outline_rounded,
-                    size: 20,
-                    color: starred
-                        ? const Color(0xFFF59E0B)
-                        : Colors.grey[400],
+                    Icons.volume_up_outlined,
+                    size: 19,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onToggleStar,
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        starred
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        size: 20,
+                        color: starred
+                            ? const Color(0xFFF59E0B)
+                            : Colors.grey[400],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -789,9 +818,7 @@ class _TermBtn extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon,
-              size: 15,
-              color: filled ? Colors.white : fillColor),
+          Icon(icon, size: 15, color: filled ? Colors.white : fillColor),
           const SizedBox(width: 5),
           Text(
             label,
@@ -817,6 +844,8 @@ class _FlashcardView extends StatelessWidget {
     required this.currentIndex,
     required this.flipped,
     required this.onFlip,
+    required this.starred,
+    required this.onToggleStar,
     required this.onPrev,
     required this.onNext,
   });
@@ -825,6 +854,8 @@ class _FlashcardView extends StatelessWidget {
   final int currentIndex;
   final bool flipped;
   final VoidCallback onFlip;
+  final bool starred;
+  final VoidCallback onToggleStar;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
 
@@ -854,7 +885,8 @@ class _FlashcardView extends StatelessWidget {
               minHeight: 5,
               backgroundColor: const Color(0xFFE5E7EB),
               valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF3B82F6)),
+                Color(0xFF3B82F6),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -868,9 +900,7 @@ class _FlashcardView extends StatelessWidget {
                   key: ValueKey('$currentIndex-$flipped'),
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: flipped
-                        ? const Color(0xFFF0F9FF)
-                        : Colors.white,
+                    color: flipped ? const Color(0xFFF0F9FF) : Colors.white,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -885,41 +915,68 @@ class _FlashcardView extends StatelessWidget {
                           : const Color(0xFFF3F4F6),
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Stack(
                     children: [
-                      Text(
-                        flipped ? 'Definition' : 'Term',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF9CA3AF),
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          flipped ? term.definition : term.text,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: flipped ? 16 : 26,
-                            fontWeight: flipped
-                                ? FontWeight.w500
-                                : FontWeight.w800,
-                            color: const Color(0xFF111827),
-                            height: 1.4,
+                      Positioned(
+                        top: 18,
+                        right: 18,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onToggleStar,
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              starred
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              size: 20,
+                              color: starred
+                                  ? const Color(0xFFF59E0B)
+                                  : Colors.grey[400],
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Tap to ${flipped ? 'hide' : 'reveal'} definition',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFBCC0CC),
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              flipped ? 'Definition' : 'Term',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9CA3AF),
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                              ),
+                              child: Text(
+                                flipped ? term.definition : term.text,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: flipped ? 16 : 26,
+                                  fontWeight: flipped
+                                      ? FontWeight.w500
+                                      : FontWeight.w800,
+                                  color: const Color(0xFF111827),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Tap to ${flipped ? 'hide' : 'reveal'} definition',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFBCC0CC),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

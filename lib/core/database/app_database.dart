@@ -22,9 +22,18 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
-        await db.execute('''
+        await _createTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await _createVocabularyCacheTables(db);
+      },
+    );
+  }
+
+  Future<void> _createTables(Database db) async {
+    await db.execute('''
           CREATE TABLE user_word_states (
             unit_id TEXT NOT NULL,
             term_id TEXT NOT NULL,
@@ -34,7 +43,7 @@ class AppDatabase {
           )
         ''');
 
-        await db.execute('''
+    await db.execute('''
           CREATE TABLE exam_history (
             id TEXT PRIMARY KEY,
             date TEXT NOT NULL,
@@ -43,7 +52,7 @@ class AppDatabase {
           )
         ''');
 
-        await db.execute('''
+    await db.execute('''
           CREATE TABLE question_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             exam_id TEXT NOT NULL,
@@ -55,7 +64,7 @@ class AppDatabase {
           )
         ''');
 
-        await db.execute('''
+    await db.execute('''
           CREATE TABLE coach_history (
             id TEXT PRIMARY KEY,
             date TEXT NOT NULL,
@@ -67,7 +76,42 @@ class AppDatabase {
             suggestion_feedback TEXT NOT NULL
           )
         ''');
-      },
-    );
+
+    await _createVocabularyCacheTables(db);
+  }
+
+  Future<void> _createVocabularyCacheTables(Database db) async {
+    await db.execute('''
+          CREATE TABLE IF NOT EXISTS cached_levels (
+            code TEXT PRIMARY KEY,
+            total_terms INTEGER NOT NULL DEFAULT 0,
+            known_terms INTEGER NOT NULL DEFAULT 0,
+            position INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+
+    await db.execute('''
+          CREATE TABLE IF NOT EXISTS cached_units (
+            level_code TEXT NOT NULL,
+            id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            total_terms INTEGER NOT NULL DEFAULT 0,
+            known_terms INTEGER NOT NULL DEFAULT 0,
+            position INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (level_code, id)
+          )
+        ''');
+
+    await db.execute('''
+          CREATE TABLE IF NOT EXISTS cached_terms (
+            level_code TEXT NOT NULL,
+            unit_name TEXT NOT NULL,
+            id TEXT NOT NULL,
+            text TEXT NOT NULL,
+            definition TEXT NOT NULL,
+            position INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (level_code, unit_name, id)
+          )
+        ''');
   }
 }

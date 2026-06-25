@@ -8,8 +8,7 @@ class UnitListViewModel extends ChangeNotifier {
   UnitListViewModel({
     required this.levelCode,
     IVocabularyService? vocabularyService,
-  }) : _vocabularyService =
-            vocabularyService ?? getIt<IVocabularyService>();
+  }) : _vocabularyService = vocabularyService ?? getIt<IVocabularyService>();
 
   final String levelCode;
   final IVocabularyService _vocabularyService;
@@ -18,13 +17,16 @@ class UnitListViewModel extends ChangeNotifier {
   String? errorMessage;
   List<Unit> units = const [];
 
-  Future<void> loadUnits() async {
+  Future<void> loadUnits({bool forceRefresh = false}) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      units = await _vocabularyService.getUnits(levelCode);
+      units = await _vocabularyService.getUnits(
+        levelCode,
+        forceRefresh: forceRefresh,
+      );
     } catch (error) {
       errorMessage = error.toString();
     } finally {
@@ -32,4 +34,6 @@ class UnitListViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> refreshUnits() => loadUnits(forceRefresh: true);
 }

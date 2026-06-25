@@ -68,103 +68,109 @@ class _LevelListPageState extends State<LevelListPage> {
     LevelListViewModel viewModel,
     List<Level> filtered,
   ) {
-    return CustomScrollView(
-      slivers: [
-        // ── Greeting + Streak ──────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'GOOD MORNING',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF9CA3AF),
-                    letterSpacing: 1.2,
+    return RefreshIndicator(
+      onRefresh: viewModel.refreshLevels,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // ── Greeting + Streak ──────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'GOOD MORNING',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9CA3AF),
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Learner',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Learner',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                _StreakCard(),
-              ],
-            ),
-          ),
-        ),
-
-        // ── Search ─────────────────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: _SearchBar(
-              controller: _searchController,
-              hint: 'Search level...',
-            ),
-          ),
-        ),
-
-        // ── Create Exam button ──────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-            child: _CreateExamButton(
-              onTap: () => context
-                  .read<AppNavigationNotifier>()
-                  .openHomeRoute(HomeRoutePaths.examConfig),
-            ),
-          ),
-        ),
-
-        // ── "Your Levels" label ────────────────────────────────────────
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Text(
-              'Your Levels',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey[800],
+                  const SizedBox(height: 16),
+                  _StreakCard(),
+                ],
               ),
             ),
           ),
-        ),
 
-        // ── Content ────────────────────────────────────────────────────
-        if (viewModel.isLoading)
-          const SliverFillRemaining(
-            child: AppLoading(message: 'Loading levels...'),
-          )
-        else if (viewModel.errorMessage != null)
-          SliverFillRemaining(
-            child: AppErrorView(
-              message: viewModel.errorMessage!,
-              onRetry: viewModel.loadLevels,
+          // ── Search ─────────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              child: _SearchBar(
+                controller: _searchController,
+                hint: 'Search level...',
+              ),
             ),
-          )
-        else if (filtered.isEmpty)
-          const SliverFillRemaining(
-            child: Center(
-              child: Text('No levels found.',
-                  style: TextStyle(color: Colors.grey)),
+          ),
+
+          // ── Create Exam button ──────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: _CreateExamButton(
+                onTap: () => context
+                    .read<AppNavigationNotifier>()
+                    .openHomeRoute(HomeRoutePaths.examConfig),
+              ),
             ),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
+          ),
+
+          // ── "Your Levels" label ────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Text(
+                'Your Levels',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ),
+          ),
+
+          // ── Content ────────────────────────────────────────────────────
+          if (viewModel.isLoading)
+            const SliverFillRemaining(
+              child: AppLoading(message: 'Loading levels...'),
+            )
+          else if (viewModel.errorMessage != null)
+            SliverFillRemaining(
+              child: AppErrorView(
+                message: viewModel.errorMessage!,
+                onRetry: () {
+                  viewModel.loadLevels();
+                },
+              ),
+            )
+          else if (filtered.isEmpty)
+            const SliverFillRemaining(
+              child: Center(
+                child: Text(
+                  'No levels found.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
                   final level = filtered[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
@@ -172,21 +178,18 @@ class _LevelListPageState extends State<LevelListPage> {
                       level: level,
                       colorIndex: index,
                       onTap: () {
-                        context
-                            .read<AppNavigationNotifier>()
-                            .openHomeRoute(
-                              HomeRoutePaths.unitList,
-                              params: {'level': level.code},
-                            );
+                        context.read<AppNavigationNotifier>().openHomeRoute(
+                          HomeRoutePaths.unitList,
+                          params: {'level': level.code},
+                        );
                       },
                     ),
                   );
-                },
-                childCount: filtered.length,
+                }, childCount: filtered.length),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -219,13 +222,15 @@ class _StreakCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.local_fire_department,
-                        size: 15, color: Colors.orange[400]),
+                    Icon(
+                      Icons.local_fire_department,
+                      size: 15,
+                      color: Colors.orange[400],
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Current Streak',
-                      style: TextStyle(
-                          fontSize: 11.5, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 11.5, color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -292,10 +297,7 @@ class _MiniStat extends StatelessWidget {
             ),
           ],
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
     );
   }
@@ -319,12 +321,13 @@ class _SearchBar extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-        prefixIcon:
-            Icon(Icons.search, color: Colors.grey[400], size: 20),
+        prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -335,8 +338,7 @@ class _SearchBar extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
         ),
       ),
     );
@@ -482,14 +484,18 @@ class _LevelCard extends StatelessWidget {
                         Text(
                           subtitle,
                           style: TextStyle(
-                              fontSize: 13, color: Colors.grey[600]),
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
                         ),
                     ],
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: pal.badgeBg,
                     borderRadius: BorderRadius.circular(20),
@@ -513,8 +519,7 @@ class _LevelCard extends StatelessWidget {
                 value: level.progress,
                 minHeight: 6,
                 backgroundColor: Colors.white.withOpacity(0.7),
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(pal.progressColor),
+                valueColor: AlwaysStoppedAnimation<Color>(pal.progressColor),
               ),
             ),
             const SizedBox(height: 14),
@@ -598,8 +603,7 @@ class _StatCol extends StatelessWidget {
             ),
           ],
         ),
-        Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
     );
   }

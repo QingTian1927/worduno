@@ -100,8 +100,7 @@ class _UnitListViewState extends State<_UnitListView> {
         .asMap()
         .entries
         .map((e) => _IndexedUnit(index: e.key, unit: e.value))
-        .where((u) =>
-            u.unit.name.toLowerCase().contains(_searchQuery))
+        .where((u) => u.unit.name.toLowerCase().contains(_searchQuery))
         .toList();
 
     switch (_sort) {
@@ -126,7 +125,7 @@ class _UnitListViewState extends State<_UnitListView> {
     final overallProgress = vm.units.isEmpty
         ? 0.0
         : vm.units.fold(0, (s, u) => s + u.knownTerms) /
-            (vm.units.fold(0, (s, u) => s + u.totalTerms).clamp(1, 999999));
+              (vm.units.fold(0, (s, u) => s + u.totalTerms).clamp(1, 999999));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2FA),
@@ -135,10 +134,12 @@ class _UnitListViewState extends State<_UnitListView> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 19, color: Color(0xFF111827)),
-          onPressed: () =>
-              context.read<AppNavigationNotifier>().popHomeRoute(),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 19,
+            color: Color(0xFF111827),
+          ),
+          onPressed: () => context.read<AppNavigationNotifier>().popHomeRoute(),
         ),
         title: const Text(
           'Lexia',
@@ -149,129 +150,136 @@ class _UnitListViewState extends State<_UnitListView> {
           ),
         ),
       ),
-      body: CustomScrollView(
-        slivers: [
-          // ── Page header ──────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    subtitle.isNotEmpty
-                        ? '${levelCode.toUpperCase()} — $subtitle'
-                        : levelCode.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
+      body: RefreshIndicator(
+        onRefresh: vm.refreshUnits,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // ── Page header ──────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      subtitle.isNotEmpty
+                          ? '${levelCode.toUpperCase()} — $subtitle'
+                          : levelCode.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${vm.units.length} units · $totalTerms words',
-                    style: const TextStyle(
-                        fontSize: 13, color: Color(0xFF9CA3AF)),
-                  ),
-                  const SizedBox(height: 14),
-                  // Full blue progress bar
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: overallProgress,
-                      minHeight: 7,
-                      backgroundColor: const Color(0xFFE5E7EB),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF3B82F6)),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${vm.units.length} units · $totalTerms words',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF9CA3AF),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    // Full blue progress bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: overallProgress,
+                        minHeight: 7,
+                        backgroundColor: const Color(0xFFE5E7EB),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF3B82F6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // ── Search ──────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: _SearchBarWidget(
-                controller: _searchController,
-                hint: 'Search units...',
+            // ── Search ──────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: _SearchBarWidget(
+                  controller: _searchController,
+                  hint: 'Search units...',
+                ),
               ),
             ),
-          ),
 
-          // ── Sort chips ──────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Sort',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151),
+            // ── Sort chips ──────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sort',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF374151),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      _SortChip(
-                        label: 'Original order',
-                        selected: _sort == _SortMode.original,
-                        onTap: () =>
-                            setState(() => _sort = _SortMode.original),
-                      ),
-                      const SizedBox(width: 8),
-                      _SortChip(
-                        label: 'A–Z',
-                        selected: _sort == _SortMode.az,
-                        onTap: () =>
-                            setState(() => _sort = _SortMode.az),
-                      ),
-                      const SizedBox(width: 8),
-                      _SortChip(
-                        label: 'Z–A',
-                        selected: _sort == _SortMode.za,
-                        onTap: () =>
-                            setState(() => _sort = _SortMode.za),
-                      ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _SortChip(
+                          label: 'Original order',
+                          selected: _sort == _SortMode.original,
+                          onTap: () =>
+                              setState(() => _sort = _SortMode.original),
+                        ),
+                        const SizedBox(width: 8),
+                        _SortChip(
+                          label: 'A–Z',
+                          selected: _sort == _SortMode.az,
+                          onTap: () => setState(() => _sort = _SortMode.az),
+                        ),
+                        const SizedBox(width: 8),
+                        _SortChip(
+                          label: 'Z–A',
+                          selected: _sort == _SortMode.za,
+                          onTap: () => setState(() => _sort = _SortMode.za),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // ── Content ──────────────────────────────────────────────────
-          if (vm.isLoading)
-            const SliverFillRemaining(
-              child: AppLoading(message: 'Loading units...'),
-            )
-          else if (vm.errorMessage != null)
-            SliverFillRemaining(
-              child: AppErrorView(
-                message: vm.errorMessage!,
-                onRetry: vm.loadUnits,
-              ),
-            )
-          else if (processedUnits.isEmpty)
-            const SliverFillRemaining(
-              child: Center(
-                child: Text('No units found.',
-                    style: TextStyle(color: Colors.grey)),
-              ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
+            // ── Content ──────────────────────────────────────────────────
+            if (vm.isLoading)
+              const SliverFillRemaining(
+                child: AppLoading(message: 'Loading units...'),
+              )
+            else if (vm.errorMessage != null)
+              SliverFillRemaining(
+                child: AppErrorView(
+                  message: vm.errorMessage!,
+                  onRetry: () {
+                    vm.loadUnits();
+                  },
+                ),
+              )
+            else if (processedUnits.isEmpty)
+              const SliverFillRemaining(
+                child: Center(
+                  child: Text(
+                    'No units found.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, i) {
                     final item = processedUnits[i];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -279,24 +287,21 @@ class _UnitListViewState extends State<_UnitListView> {
                         unit: item.unit,
                         displayIndex: item.index,
                         onTap: () {
-                          context
-                              .read<AppNavigationNotifier>()
-                              .openHomeRoute(
-                                HomeRoutePaths.termList,
-                                params: {
-                                  'level': vm.levelCode,
-                                  'unit': item.unit.name,
-                                },
-                              );
+                          context.read<AppNavigationNotifier>().openHomeRoute(
+                            HomeRoutePaths.termList,
+                            params: {
+                              'level': vm.levelCode,
+                              'unit': item.unit.name,
+                            },
+                          );
                         },
                       ),
                     );
-                  },
-                  childCount: processedUnits.length,
+                  }, childCount: processedUnits.length),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -317,8 +322,7 @@ class _IndexedUnit {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SearchBarWidget extends StatelessWidget {
-  const _SearchBarWidget(
-      {required this.controller, required this.hint});
+  const _SearchBarWidget({required this.controller, required this.hint});
 
   final TextEditingController controller;
   final String hint;
@@ -330,14 +334,18 @@ class _SearchBarWidget extends StatelessWidget {
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle:
-            const TextStyle(color: Color(0xFFBCC0CC), fontSize: 14),
-        prefixIcon:
-            const Icon(Icons.search, color: Color(0xFFBCC0CC), size: 20),
+        hintStyle: const TextStyle(color: Color(0xFFBCC0CC), fontSize: 14),
+        prefixIcon: const Icon(
+          Icons.search,
+          color: Color(0xFFBCC0CC),
+          size: 20,
+        ),
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -348,8 +356,7 @@ class _SearchBarWidget extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide:
-              const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
         ),
       ),
     );
@@ -377,15 +384,12 @@ class _SortChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF3B82F6) : Colors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF3B82F6)
-                : const Color(0xFFE5E7EB),
+            color: selected ? const Color(0xFF3B82F6) : const Color(0xFFE5E7EB),
           ),
         ),
         child: Text(
@@ -418,35 +422,41 @@ class _UnitCard extends StatelessWidget {
 
   static const _palettes = [
     _UnitPalette(
-        iconBg: Color(0xFFDBEAFE),
-        iconColor: Color(0xFF3B82F6),
-        progress: Color(0xFF3B82F6),
-        pct: Color(0xFF3B82F6)),
+      iconBg: Color(0xFFDBEAFE),
+      iconColor: Color(0xFF3B82F6),
+      progress: Color(0xFF3B82F6),
+      pct: Color(0xFF3B82F6),
+    ),
     _UnitPalette(
-        iconBg: Color(0xFFFEE2E2),
-        iconColor: Color(0xFFEF4444),
-        progress: Color(0xFFEF4444),
-        pct: Color(0xFFEF4444)),
+      iconBg: Color(0xFFFEE2E2),
+      iconColor: Color(0xFFEF4444),
+      progress: Color(0xFFEF4444),
+      pct: Color(0xFFEF4444),
+    ),
     _UnitPalette(
-        iconBg: Color(0xFFFEF3C7),
-        iconColor: Color(0xFFF59E0B),
-        progress: Color(0xFFF59E0B),
-        pct: Color(0xFFF59E0B)),
+      iconBg: Color(0xFFFEF3C7),
+      iconColor: Color(0xFFF59E0B),
+      progress: Color(0xFFF59E0B),
+      pct: Color(0xFFF59E0B),
+    ),
     _UnitPalette(
-        iconBg: Color(0xFFD1FAE5),
-        iconColor: Color(0xFF10B981),
-        progress: Color(0xFF10B981),
-        pct: Color(0xFF10B981)),
+      iconBg: Color(0xFFD1FAE5),
+      iconColor: Color(0xFF10B981),
+      progress: Color(0xFF10B981),
+      pct: Color(0xFF10B981),
+    ),
     _UnitPalette(
-        iconBg: Color(0xFFEDE9FE),
-        iconColor: Color(0xFF8B5CF6),
-        progress: Color(0xFF8B5CF6),
-        pct: Color(0xFF8B5CF6)),
+      iconBg: Color(0xFFEDE9FE),
+      iconColor: Color(0xFF8B5CF6),
+      progress: Color(0xFF8B5CF6),
+      pct: Color(0xFF8B5CF6),
+    ),
     _UnitPalette(
-        iconBg: Color(0xFFDBEAFE),
-        iconColor: Color(0xFF60A5FA),
-        progress: Color(0xFF60A5FA),
-        pct: Color(0xFF60A5FA)),
+      iconBg: Color(0xFFDBEAFE),
+      iconColor: Color(0xFF60A5FA),
+      progress: Color(0xFF60A5FA),
+      pct: Color(0xFF60A5FA),
+    ),
   ];
 
   static const _icons = [
@@ -543,8 +553,7 @@ class _UnitCard extends StatelessWidget {
                 value: unit.progress,
                 minHeight: 5,
                 backgroundColor: const Color(0xFFF3F4F6),
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(pal.progress),
+                valueColor: AlwaysStoppedAnimation<Color>(pal.progress),
               ),
             ),
             const SizedBox(height: 10),
@@ -556,16 +565,23 @@ class _UnitCard extends StatelessWidget {
                 Text(
                   '${unit.knownTerms} learned',
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF9CA3AF)),
+                    fontSize: 12,
+                    color: Color(0xFF9CA3AF),
+                  ),
                 ),
                 const SizedBox(width: 14),
-                Icon(Icons.crop_square_outlined,
-                    size: 13, color: Colors.grey[400]),
+                Icon(
+                  Icons.crop_square_outlined,
+                  size: 13,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(width: 3),
                 Text(
                   '${unit.totalTerms} total',
                   style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF9CA3AF)),
+                    fontSize: 12,
+                    color: Color(0xFF9CA3AF),
+                  ),
                 ),
               ],
             ),
